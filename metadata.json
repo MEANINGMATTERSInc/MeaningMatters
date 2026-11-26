@@ -1,0 +1,6 @@
+{
+  "name": "MeaningMatters",
+  "description": "Purpose-driven AI book creation studio with Book Architect, Knowledge Codex, Research & Evidence Engine, Author Voice, Muhasabah Review, Consistency Engine, and Manuscript Export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,535 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HARDENED PRIMITIVES ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isOptionalString(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isOptionalStringList(data, field, maxItems) {
+      return !(field in data) || data[field] == null || (
+        data[field] is list &&
+        data[field].size() <= maxItems &&
+        (data[field].size() == 0 || data[field][0] is string)
+      );
+    }
+
+    function isValidEvidenceLevel(val) {
+      return val is string && val in ['VERIFIED', 'SUPPORTED', 'INTERPRETATION', 'TRADITION', 'HYPOTHESIS', 'SPECULATION', 'UNVERIFIED'];
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+    function isValidUserProfile(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+             isOptionalString(data, 'email', 200) &&
+             isOptionalString(data, 'defaultPenName', 120) &&
+             (!('editorFontSizeSp' in data) || (data.editorFontSizeSp is int && data.editorFontSizeSp >= 12 && data.editorFontSizeSp <= 32)) &&
+             (!('dyslexiaFriendlySpacing' in data) || data.dyslexiaFriendlySpacing is bool) &&
+             (!('focusModeDefault' in data) || data.focusModeDefault is bool) &&
+             (!('autoSaveEnabled' in data) || data.autoSaveEnabled is bool) &&
+             isOptionalString(data, 'preferredModel', 80) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBook(data, userId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             isOptionalString(data, 'subtitle', 300) &&
+             isOptionalString(data, 'genre', 100) &&
+             isOptionalString(data, 'targetAudience', 300) &&
+             data.status is string && data.status in ['CONCEPT', 'OUTLINING', 'DRAFTING', 'REVIEWING', 'READY', 'PUBLISHED'] &&
+             data.archived is bool &&
+             data.wordCount is int && data.wordCount >= 0 && data.wordCount <= 5000000 &&
+             data.targetWordCount is int && data.targetWordCount >= 0 && data.targetWordCount <= 5000000 &&
+             data.chapterCount is int && data.chapterCount >= 0 && data.chapterCount <= 500 &&
+             data.completedChapters is int && data.completedChapters >= 0 && data.completedChapters <= 500 &&
+             data.purposeApproved is bool &&
+             data.ledgerApproved is bool &&
+             data.pipelineStage is int && data.pipelineStage >= 1 && data.pipelineStage <= 8 &&
+             isOptionalString(data, 'lastCompletedSection', 300) &&
+             isOptionalString(data, 'nextUnfinishedSection', 300) &&
+             data.driveSyncStatus is string && data.driveSyncStatus in ['LOCAL_ONLY', 'EXPORTED_TO_DRIVE', 'NEEDS_RESYNC'] &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBookPurpose(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             isOptionalString(data, 'subtitle', 300) &&
+             isOptionalString(data, 'genre', 100) &&
+             isOptionalString(data, 'intendedAudience', 1000) &&
+             data.centralPurpose is string && data.centralPurpose.size() <= 3000 &&
+             data.mainThesis is string && data.mainThesis.size() <= 3000 &&
+             isOptionalString(data, 'readerTransformation', 2000) &&
+             isOptionalString(data, 'authorValues', 2000) &&
+             isOptionalString(data, 'intellectualBoundaries', 2000) &&
+             isOptionalString(data, 'desiredStyle', 1000) &&
+             (!('targetLengthWords' in data) || (data.targetLengthWords is int && data.targetLengthWords >= 0 && data.targetLengthWords <= 5000000)) &&
+             isOptionalString(data, 'generatedDocument', 40000) &&
+             data.approved is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAuthorVoice(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.writingTone is string && data.writingTone.size() <= 200 &&
+             data.sentenceComplexity is string && data.sentenceComplexity.size() <= 200 &&
+             data.vocabularyLevel is string && data.vocabularyLevel.size() <= 200 &&
+             data.narrativePerspective is string && data.narrativePerspective.size() <= 200 &&
+             isOptionalStringList(data, 'preferredTerms', 100) &&
+             isOptionalStringList(data, 'avoidedTerms', 100) &&
+             isOptionalString(data, 'writingSamples', 15000) &&
+             isOptionalString(data, 'styleNotes', 4000) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidCanonicalLedger(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.coreThesis is string && data.coreThesis.size() <= 4000 &&
+             isOptionalString(data, 'purpose', 3000) &&
+             isOptionalString(data, 'intendedAudience', 1000) &&
+             isOptionalStringList(data, 'foundationalAxioms', 100) &&
+             isOptionalString(data, 'epistemicStandards', 6000) &&
+             isOptionalStringList(data, 'formalDefinitions', 150) &&
+             isOptionalString(data, 'mathematicalSpecs', 10000) &&
+             isOptionalStringList(data, 'terminologicalGlossary', 200) &&
+             isOptionalStringList(data, 'resolvedPremises', 150) &&
+             isOptionalStringList(data, 'openQuestions', 150) &&
+             data.approved is bool &&
+             data.version is int && data.version >= 1 && data.version <= 10000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidBookSection(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             isOptionalString(data, 'description', 2000) &&
+             data.orderIndex is int && data.orderIndex >= 0 && data.orderIndex <= 500 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidChapter(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             isOptionalString(data, 'sectionId', 128) &&
+             isOptionalString(data, 'partLabel', 160) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 250 &&
+             data.orderIndex is int && data.orderIndex >= 0 && data.orderIndex <= 500 &&
+             isOptionalString(data, 'objective', 3000) &&
+             isOptionalString(data, 'coreProposition', 3000) &&
+             isOptionalString(data, 'argumentativePurpose', 3000) &&
+             isOptionalString(data, 'requiredPremises', 4000) &&
+             isOptionalString(data, 'requiredEvidence', 4000) &&
+             isOptionalString(data, 'formalisms', 4000) &&
+             isOptionalString(data, 'strongestCounterargument', 4000) &&
+             isOptionalString(data, 'expectedResolution', 4000) &&
+             isOptionalString(data, 'transitionToNext', 2000) &&
+             (!('targetWordCount' in data) || (data.targetWordCount is int && data.targetWordCount >= 0 && data.targetWordCount <= 500000)) &&
+             isOptionalString(data, 'content', 400000) &&
+             data.wordCount is int && data.wordCount >= 0 && data.wordCount <= 500000 &&
+             data.status is string && data.status in ['OUTLINE', 'DRAFT', 'REVIEWED', 'APPROVED'] &&
+             data.blueprintApproved is bool &&
+             data.fullProseDrafted is bool &&
+             data.argumentsDeveloped is bool &&
+             data.evidenceReviewed is bool &&
+             data.redTeamCompleted is bool &&
+             data.revisionsIncorporated is bool &&
+             data.continuityChecked is bool &&
+             data.versionNumber is int && data.versionNumber >= 1 && data.versionNumber <= 10000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidManuscriptVersion(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.chapterId is string && data.chapterId.size() >= 1 && data.chapterId.size() <= 128 &&
+             data.versionNumber is int && data.versionNumber >= 1 && data.versionNumber <= 10000 &&
+             data.label is string && data.label.size() >= 1 && data.label.size() <= 200 &&
+             data.content is string && data.content.size() <= 400000 &&
+             data.wordCount is int && data.wordCount >= 0 && data.wordCount <= 500000 &&
+             data.authorApproved is bool &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidKnowledgeEntry(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.category is string && data.category in ['CONCEPT', 'PERSON', 'PLACE', 'EVENT', 'HISTORICAL_PERIOD', 'SCIENTIFIC_TOPIC', 'CULTURAL_TRADITION', 'TERMINOLOGY', 'QUOTATION', 'RESEARCH_FINDING'] &&
+             data.summary is string && data.summary.size() <= 3000 &&
+             isOptionalString(data, 'details', 20000) &&
+             isValidEvidenceLevel(data.epistemicStatus) &&
+             data.originType is string && data.originType in ['AUTHOR_APPROVED', 'RESEARCH_FINDING', 'INTERPRETATION', 'AI_SUGGESTION'] &&
+             isOptionalStringList(data, 'relatedChapterIds', 100) &&
+             data.approved is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidResearchSource(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 300 &&
+             data.author is string && data.author.size() <= 250 &&
+             isOptionalString(data, 'publicationDate', 80) &&
+             isOptionalString(data, 'publisher', 200) &&
+             isOptionalString(data, 'url', 1000) &&
+             data.sourceType is string && data.sourceType.size() >= 1 && data.sourceType.size() <= 80 &&
+             isOptionalString(data, 'notes', 15000) &&
+             isValidEvidenceLevel(data.evidenceLevel) &&
+             isOptionalString(data, 'chapterId', 128) &&
+             isOptionalString(data, 'citationText', 1500) &&
+             isOptionalString(data, 'verificationNote', 1500) &&
+             isOptionalString(data, 'attachmentName', 300) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidResearchClaim(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             isOptionalString(data, 'chapterId', 128) &&
+             isOptionalString(data, 'sourceId', 128) &&
+             data.statement is string && data.statement.size() >= 1 && data.statement.size() <= 3000 &&
+             isValidEvidenceLevel(data.evidenceLevel) &&
+             isOptionalString(data, 'citationRef', 500) &&
+             data.verified is bool &&
+             isOptionalString(data, 'notes', 3000) &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidReviewReport(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             isOptionalString(data, 'chapterId', 128) &&
+             data.reviewType is string && data.reviewType in ['MUHASABAH', 'RED_TEAM', 'CONSISTENCY', 'WHOLE_BOOK'] &&
+             data.summary is string && data.summary.size() <= 10000 &&
+             data.overallScore is int && data.overallScore >= 0 && data.overallScore <= 100 &&
+             (!('findings' in data) || data.findings == null || (data.findings is list && data.findings.size() <= 100 && (data.findings.size() == 0 || data.findings[0] is map))) &&
+             isOptionalStringList(data, 'qualitiesFlagged', 20) &&
+             isOptionalStringList(data, 'unresolvedQuestions', 50) &&
+             data.authorAcknowledged is bool &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidAIInteraction(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             isOptionalString(data, 'chapterId', 128) &&
+             data.agentRole is string && data.agentRole.size() >= 1 && data.agentRole.size() <= 100 &&
+             data.actionType is string && data.actionType.size() >= 1 && data.actionType.size() <= 100 &&
+             data.modelName is string && data.modelName.size() >= 1 && data.modelName.size() <= 80 &&
+             isOptionalString(data, 'promptSummary', 2000) &&
+             isOptionalString(data, 'outputSummary', 4000) &&
+             data.decision is string && data.decision in ['PENDING', 'ACCEPTED', 'MODIFIED', 'REJECTED'] &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidExportJob(data, userId, bookId) {
+      return data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.bookId is string && data.bookId == bookId && data.bookId.size() <= 128 &&
+             data.format is string && data.format in ['PDF', 'DOCX', 'EPUB', 'MARKDOWN', 'JSON'] &&
+             data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 250 &&
+             data.status is string && data.status in ['COMPLETED', 'FAILED'] &&
+             data.validated is bool &&
+             isOptionalString(data, 'validationNotes', 2000) &&
+             data.byteSize is int && data.byteSize >= 0 && data.byteSize <= 500000000 &&
+             data.chapterCount is int && data.chapterCount >= 0 && data.chapterCount <= 500 &&
+             data.wordCount is int && data.wordCount >= 0 && data.wordCount <= 5000000 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- COLLECTION ACCESS RULES ---
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'defaultPenName', 'editorFontSizeSp', 'dyslexiaFriendlySpacing', 'focusModeDefault', 'autoSaveEnabled', 'preferredModel', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming(), userId);
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'defaultPenName', 'editorFontSizeSp', 'dyslexiaFriendlySpacing', 'focusModeDefault', 'autoSaveEnabled', 'preferredModel', 'updatedAt']);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      // Books Collection
+      match /books/{bookId} {
+        allow get: if isOwner(userId) && isValidId(bookId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(bookId) &&
+                         incoming().keys().hasAll(['userId', 'title', 'status', 'archived', 'wordCount', 'targetWordCount', 'chapterCount', 'completedChapters', 'purposeApproved', 'ledgerApproved', 'pipelineStage', 'driveSyncStatus', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'title', 'subtitle', 'genre', 'targetAudience', 'status', 'archived', 'wordCount', 'targetWordCount', 'chapterCount', 'completedChapters', 'purposeApproved', 'ledgerApproved', 'pipelineStage', 'lastCompletedSection', 'nextUnfinishedSection', 'driveSyncStatus', 'createdAt', 'updatedAt']) &&
+                         isValidBook(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(bookId) &&
+                         isValidBook(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'subtitle', 'genre', 'targetAudience', 'status', 'archived', 'wordCount', 'targetWordCount', 'chapterCount', 'completedChapters', 'purposeApproved', 'ledgerApproved', 'pipelineStage', 'lastCompletedSection', 'nextUnfinishedSection', 'driveSyncStatus', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(bookId);
+
+        // Book Purpose Document
+        match /purpose/{docId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(docId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(docId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'title', 'centralPurpose', 'mainThesis', 'approved', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'title', 'subtitle', 'genre', 'intendedAudience', 'centralPurpose', 'mainThesis', 'readerTransformation', 'authorValues', 'intellectualBoundaries', 'desiredStyle', 'targetLengthWords', 'generatedDocument', 'approved', 'createdAt', 'updatedAt']) &&
+                           isValidBookPurpose(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(docId) &&
+                           isValidBookPurpose(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'subtitle', 'genre', 'intendedAudience', 'centralPurpose', 'mainThesis', 'readerTransformation', 'authorValues', 'intellectualBoundaries', 'desiredStyle', 'targetLengthWords', 'generatedDocument', 'approved', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(docId);
+        }
+
+        // Author Voice Profile
+        match /voice/{docId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(docId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(docId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'writingTone', 'sentenceComplexity', 'vocabularyLevel', 'narrativePerspective', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'writingTone', 'sentenceComplexity', 'vocabularyLevel', 'narrativePerspective', 'preferredTerms', 'avoidedTerms', 'writingSamples', 'styleNotes', 'createdAt', 'updatedAt']) &&
+                           isValidAuthorVoice(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(docId) &&
+                           isValidAuthorVoice(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['writingTone', 'sentenceComplexity', 'vocabularyLevel', 'narrativePerspective', 'preferredTerms', 'avoidedTerms', 'writingSamples', 'styleNotes', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(docId);
+        }
+
+        // Canonical Epistemic Ledger
+        match /ledger/{docId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(docId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(docId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'coreThesis', 'approved', 'version', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'coreThesis', 'purpose', 'intendedAudience', 'foundationalAxioms', 'epistemicStandards', 'formalDefinitions', 'mathematicalSpecs', 'terminologicalGlossary', 'resolvedPremises', 'openQuestions', 'approved', 'version', 'createdAt', 'updatedAt']) &&
+                           isValidCanonicalLedger(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(docId) &&
+                           isValidCanonicalLedger(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['coreThesis', 'purpose', 'intendedAudience', 'foundationalAxioms', 'epistemicStandards', 'formalDefinitions', 'mathematicalSpecs', 'terminologicalGlossary', 'resolvedPremises', 'openQuestions', 'approved', 'version', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(docId);
+        }
+
+        // Book Sections (Parts)
+        match /sections/{sectionId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(sectionId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(sectionId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'title', 'orderIndex', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'title', 'description', 'orderIndex', 'createdAt', 'updatedAt']) &&
+                           isValidBookSection(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(sectionId) &&
+                           isValidBookSection(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'orderIndex', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(sectionId);
+        }
+
+        // Chapters
+        match /chapters/{chapterId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(chapterId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(chapterId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'title', 'orderIndex', 'wordCount', 'status', 'blueprintApproved', 'fullProseDrafted', 'argumentsDeveloped', 'evidenceReviewed', 'redTeamCompleted', 'revisionsIncorporated', 'continuityChecked', 'versionNumber', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'sectionId', 'partLabel', 'title', 'orderIndex', 'objective', 'coreProposition', 'argumentativePurpose', 'requiredPremises', 'requiredEvidence', 'formalisms', 'strongestCounterargument', 'expectedResolution', 'transitionToNext', 'targetWordCount', 'content', 'wordCount', 'status', 'blueprintApproved', 'fullProseDrafted', 'argumentsDeveloped', 'evidenceReviewed', 'redTeamCompleted', 'revisionsIncorporated', 'continuityChecked', 'versionNumber', 'createdAt', 'updatedAt']) &&
+                           isValidChapter(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(chapterId) &&
+                           isValidChapter(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['sectionId', 'partLabel', 'title', 'orderIndex', 'objective', 'coreProposition', 'argumentativePurpose', 'requiredPremises', 'requiredEvidence', 'formalisms', 'strongestCounterargument', 'expectedResolution', 'transitionToNext', 'targetWordCount', 'content', 'wordCount', 'status', 'blueprintApproved', 'fullProseDrafted', 'argumentsDeveloped', 'evidenceReviewed', 'redTeamCompleted', 'revisionsIncorporated', 'continuityChecked', 'versionNumber', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(chapterId);
+        }
+
+        // Manuscript Versions (Immutable Snapshots)
+        match /versions/{versionId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(versionId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(versionId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'chapterId', 'versionNumber', 'label', 'content', 'wordCount', 'authorApproved', 'createdAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'chapterId', 'versionNumber', 'label', 'content', 'wordCount', 'authorApproved', 'createdAt']) &&
+                           isValidManuscriptVersion(incoming(), userId, bookId);
+          allow update: if false;
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(versionId);
+        }
+
+        // Knowledge Codex
+        match /codex/{entryId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(entryId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(entryId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'title', 'category', 'summary', 'epistemicStatus', 'originType', 'approved', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'title', 'category', 'summary', 'details', 'epistemicStatus', 'originType', 'relatedChapterIds', 'approved', 'createdAt', 'updatedAt']) &&
+                           isValidKnowledgeEntry(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(entryId) &&
+                           isValidKnowledgeEntry(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'summary', 'details', 'epistemicStatus', 'originType', 'relatedChapterIds', 'approved', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(entryId);
+        }
+
+        // Research Sources
+        match /sources/{sourceId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(sourceId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(sourceId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'title', 'author', 'sourceType', 'evidenceLevel', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'title', 'author', 'publicationDate', 'publisher', 'url', 'sourceType', 'notes', 'evidenceLevel', 'chapterId', 'citationText', 'verificationNote', 'attachmentName', 'createdAt', 'updatedAt']) &&
+                           isValidResearchSource(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(sourceId) &&
+                           isValidResearchSource(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'author', 'publicationDate', 'publisher', 'url', 'sourceType', 'notes', 'evidenceLevel', 'chapterId', 'citationText', 'verificationNote', 'attachmentName', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(sourceId);
+        }
+
+        // Research Claims & Citations
+        match /claims/{claimId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(claimId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(claimId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'statement', 'evidenceLevel', 'verified', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'chapterId', 'sourceId', 'statement', 'evidenceLevel', 'citationRef', 'verified', 'notes', 'createdAt', 'updatedAt']) &&
+                           isValidResearchClaim(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(claimId) &&
+                           isValidResearchClaim(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['chapterId', 'sourceId', 'statement', 'evidenceLevel', 'citationRef', 'verified', 'notes', 'updatedAt']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(claimId);
+        }
+
+        // Review Reports (Muhasabah, RED_TEAM, Consistency, Whole-Book)
+        match /reviews/{reviewId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(reviewId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(reviewId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'reviewType', 'summary', 'overallScore', 'authorAcknowledged', 'createdAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'chapterId', 'reviewType', 'summary', 'overallScore', 'findings', 'qualitiesFlagged', 'unresolvedQuestions', 'authorAcknowledged', 'createdAt']) &&
+                           isValidReviewReport(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(reviewId) &&
+                           isValidReviewReport(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['authorAcknowledged']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(reviewId);
+        }
+
+        // AI Governance Audit Log
+        match /ai_logs/{interactionId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(interactionId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(interactionId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'agentRole', 'actionType', 'modelName', 'decision', 'createdAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'chapterId', 'agentRole', 'actionType', 'modelName', 'promptSummary', 'outputSummary', 'decision', 'createdAt']) &&
+                           isValidAIInteraction(incoming(), userId, bookId);
+          allow update: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(interactionId) &&
+                           isValidAIInteraction(incoming(), userId, bookId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().bookId == existing().bookId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['decision']);
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(interactionId);
+        }
+
+        // Publication Export Jobs
+        match /exports/{exportId} {
+          allow get: if isOwner(userId) && isValidId(bookId) && isValidId(exportId);
+          allow list: if isOwner(userId) && isValidId(bookId);
+          allow create: if isOwner(userId) &&
+                           isValidId(bookId) && isValidId(exportId) &&
+                           incoming().keys().hasAll(['userId', 'bookId', 'format', 'fileName', 'status', 'validated', 'byteSize', 'chapterCount', 'wordCount', 'createdAt']) &&
+                           incoming().keys().hasOnly(['userId', 'bookId', 'format', 'fileName', 'status', 'validated', 'validationNotes', 'byteSize', 'chapterCount', 'wordCount', 'createdAt']) &&
+                           isValidExportJob(incoming(), userId, bookId);
+          allow update: if false;
+          allow delete: if isOwner(userId) && isValidId(bookId) && isValidId(exportId);
+        }
+      }
+    }
+  }
+}

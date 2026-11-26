@@ -1,0 +1,365 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Author account profile and editorial studio settings.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "Author display name." },
+        "email": { "type": "string", "description": "Author email address (private to owner)." },
+        "defaultPenName": { "type": "string", "description": "Default pen name for title and copyright pages." },
+        "editorFontSizeSp": { "type": "integer", "description": "Preferred manuscript editor font size in sp (14-28)." },
+        "dyslexiaFriendlySpacing": { "type": "boolean", "description": "Whether expanded line and letter spacing is enabled." },
+        "focusModeDefault": { "type": "boolean", "description": "Whether distraction-free mode opens by default." },
+        "autoSaveEnabled": { "type": "boolean", "description": "Whether chapter autosave is active." },
+        "preferredModel": { "type": "string", "description": "Selected Gemini model identifier." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation server timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update server timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "displayName", "createdAt", "updatedAt"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "A governed book manuscript project owned by an author.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "genre": { "type": "string" },
+        "targetAudience": { "type": "string" },
+        "status": { "type": "string", "enum": ["CONCEPT", "OUTLINING", "DRAFTING", "REVIEWING", "READY", "PUBLISHED"] },
+        "archived": { "type": "boolean" },
+        "wordCount": { "type": "integer" },
+        "targetWordCount": { "type": "integer" },
+        "chapterCount": { "type": "integer" },
+        "completedChapters": { "type": "integer" },
+        "purposeApproved": { "type": "boolean" },
+        "ledgerApproved": { "type": "boolean" },
+        "pipelineStage": { "type": "integer", "description": "Current Full-Book Generation Pipeline stage (1-8)." },
+        "lastCompletedSection": { "type": "string" },
+        "nextUnfinishedSection": { "type": "string" },
+        "driveSyncStatus": { "type": "string", "enum": ["LOCAL_ONLY", "EXPORTED_TO_DRIVE", "NEEDS_RESYNC"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "status", "archived", "wordCount", "targetWordCount", "chapterCount", "completedChapters", "purposeApproved", "ledgerApproved", "pipelineStage", "driveSyncStatus", "createdAt", "updatedAt"]
+    },
+    "BookPurpose": {
+      "title": "BookPurpose",
+      "description": "Structured Book Purpose Document defining meaning before generation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "genre": { "type": "string" },
+        "intendedAudience": { "type": "string" },
+        "centralPurpose": { "type": "string" },
+        "mainThesis": { "type": "string" },
+        "readerTransformation": { "type": "string" },
+        "authorValues": { "type": "string" },
+        "intellectualBoundaries": { "type": "string" },
+        "desiredStyle": { "type": "string" },
+        "targetLengthWords": { "type": "integer" },
+        "generatedDocument": { "type": "string" },
+        "approved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "title", "centralPurpose", "mainThesis", "approved", "createdAt", "updatedAt"]
+    },
+    "AuthorVoice": {
+      "title": "AuthorVoice",
+      "description": "Authorial voice profile guiding all writing and editorial assistance.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "writingTone": { "type": "string" },
+        "sentenceComplexity": { "type": "string" },
+        "vocabularyLevel": { "type": "string" },
+        "narrativePerspective": { "type": "string" },
+        "preferredTerms": { "type": "array" },
+        "avoidedTerms": { "type": "array" },
+        "writingSamples": { "type": "string" },
+        "styleNotes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "writingTone", "sentenceComplexity", "vocabularyLevel", "narrativePerspective", "createdAt", "updatedAt"]
+    },
+    "CanonicalLedger": {
+      "title": "CanonicalLedger",
+      "description": "Authoritative epistemic ledger governing all multi-agent manuscript generation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "coreThesis": { "type": "string" },
+        "purpose": { "type": "string" },
+        "intendedAudience": { "type": "string" },
+        "foundationalAxioms": { "type": "array" },
+        "epistemicStandards": { "type": "string" },
+        "formalDefinitions": { "type": "array" },
+        "mathematicalSpecs": { "type": "string" },
+        "terminologicalGlossary": { "type": "array" },
+        "resolvedPremises": { "type": "array" },
+        "openQuestions": { "type": "array" },
+        "approved": { "type": "boolean" },
+        "version": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "coreThesis", "approved", "version", "createdAt", "updatedAt"]
+    },
+    "BookSection": {
+      "title": "BookSection",
+      "description": "High-level structural Part or Section of a book.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "orderIndex": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "title", "orderIndex", "createdAt", "updatedAt"]
+    },
+    "Chapter": {
+      "title": "Chapter",
+      "description": "Book chapter containing architectural blueprint, manuscript prose, and 7-point completion ledger.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "partLabel": { "type": "string" },
+        "title": { "type": "string" },
+        "orderIndex": { "type": "integer" },
+        "objective": { "type": "string" },
+        "coreProposition": { "type": "string" },
+        "argumentativePurpose": { "type": "string" },
+        "requiredPremises": { "type": "string" },
+        "requiredEvidence": { "type": "string" },
+        "formalisms": { "type": "string" },
+        "strongestCounterargument": { "type": "string" },
+        "expectedResolution": { "type": "string" },
+        "transitionToNext": { "type": "string" },
+        "targetWordCount": { "type": "integer" },
+        "content": { "type": "string" },
+        "wordCount": { "type": "integer" },
+        "status": { "type": "string", "enum": ["OUTLINE", "DRAFT", "REVIEWED", "APPROVED"] },
+        "blueprintApproved": { "type": "boolean" },
+        "fullProseDrafted": { "type": "boolean" },
+        "argumentsDeveloped": { "type": "boolean" },
+        "evidenceReviewed": { "type": "boolean" },
+        "redTeamCompleted": { "type": "boolean" },
+        "revisionsIncorporated": { "type": "boolean" },
+        "continuityChecked": { "type": "boolean" },
+        "versionNumber": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "title", "orderIndex", "wordCount", "status", "blueprintApproved", "fullProseDrafted", "argumentsDeveloped", "evidenceReviewed", "redTeamCompleted", "revisionsIncorporated", "continuityChecked", "versionNumber", "createdAt", "updatedAt"]
+    },
+    "ManuscriptVersion": {
+      "title": "ManuscriptVersion",
+      "description": "Immutable version snapshot of a chapter manuscript.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "versionNumber": { "type": "integer" },
+        "label": { "type": "string" },
+        "content": { "type": "string" },
+        "wordCount": { "type": "integer" },
+        "authorApproved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "chapterId", "versionNumber", "label", "content", "wordCount", "authorApproved", "createdAt"]
+    },
+    "KnowledgeEntry": {
+      "title": "KnowledgeEntry",
+      "description": "Persistent Knowledge Codex entry distinguishing author-approved facts, research, interpretations, and AI suggestions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string", "enum": ["CONCEPT", "PERSON", "PLACE", "EVENT", "HISTORICAL_PERIOD", "SCIENTIFIC_TOPIC", "CULTURAL_TRADITION", "TERMINOLOGY", "QUOTATION", "RESEARCH_FINDING"] },
+        "summary": { "type": "string" },
+        "details": { "type": "string" },
+        "epistemicStatus": { "type": "string", "enum": ["VERIFIED", "SUPPORTED", "INTERPRETATION", "TRADITION", "HYPOTHESIS", "SPECULATION", "UNVERIFIED"] },
+        "originType": { "type": "string", "enum": ["AUTHOR_APPROVED", "RESEARCH_FINDING", "INTERPRETATION", "AI_SUGGESTION"] },
+        "relatedChapterIds": { "type": "array" },
+        "approved": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "title", "category", "summary", "epistemicStatus", "originType", "approved", "createdAt", "updatedAt"]
+    },
+    "ResearchSource": {
+      "title": "ResearchSource",
+      "description": "Registered research source with explicit evidence classification and verification status.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "publicationDate": { "type": "string" },
+        "publisher": { "type": "string" },
+        "url": { "type": "string" },
+        "sourceType": { "type": "string" },
+        "notes": { "type": "string" },
+        "evidenceLevel": { "type": "string", "enum": ["VERIFIED", "SUPPORTED", "INTERPRETATION", "TRADITION", "HYPOTHESIS", "SPECULATION", "UNVERIFIED"] },
+        "chapterId": { "type": "string" },
+        "citationText": { "type": "string" },
+        "verificationNote": { "type": "string" },
+        "attachmentName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "title", "author", "sourceType", "evidenceLevel", "createdAt", "updatedAt"]
+    },
+    "ResearchClaim": {
+      "title": "ResearchClaim",
+      "description": "Source-to-claim evidence mapping and citation record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "sourceId": { "type": "string" },
+        "statement": { "type": "string" },
+        "evidenceLevel": { "type": "string", "enum": ["VERIFIED", "SUPPORTED", "INTERPRETATION", "TRADITION", "HYPOTHESIS", "SPECULATION", "UNVERIFIED"] },
+        "citationRef": { "type": "string" },
+        "verified": { "type": "boolean" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "statement", "evidenceLevel", "verified", "createdAt", "updatedAt"]
+    },
+    "ReviewReport": {
+      "title": "ReviewReport",
+      "description": "Muhasabah, RED_TEAM adversarial, Consistency, or Whole-Book verification report.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "reviewType": { "type": "string", "enum": ["MUHASABAH", "RED_TEAM", "CONSISTENCY", "WHOLE_BOOK"] },
+        "summary": { "type": "string" },
+        "overallScore": { "type": "integer" },
+        "findings": { "type": "array" },
+        "qualitiesFlagged": { "type": "array" },
+        "unresolvedQuestions": { "type": "array" },
+        "authorAcknowledged": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "reviewType", "summary", "overallScore", "authorAcknowledged", "createdAt"]
+    },
+    "AIInteraction": {
+      "title": "AIInteraction",
+      "description": "Auditable governance record of AI agent suggestions and author decisions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "agentRole": { "type": "string" },
+        "actionType": { "type": "string" },
+        "modelName": { "type": "string" },
+        "promptSummary": { "type": "string" },
+        "outputSummary": { "type": "string" },
+        "decision": { "type": "string", "enum": ["PENDING", "ACCEPTED", "MODIFIED", "REJECTED"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "agentRole", "actionType", "modelName", "decision", "createdAt"]
+    },
+    "ExportJob": {
+      "title": "ExportJob",
+      "description": "Record of a manuscript publication export and validation result.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "bookId": { "type": "string" },
+        "format": { "type": "string", "enum": ["PDF", "DOCX", "EPUB", "MARKDOWN", "JSON"] },
+        "fileName": { "type": "string" },
+        "status": { "type": "string", "enum": ["COMPLETED", "FAILED"] },
+        "validated": { "type": "boolean" },
+        "validationNotes": { "type": "string" },
+        "byteSize": { "type": "integer" },
+        "chapterCount": { "type": "integer" },
+        "wordCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "bookId", "format", "fileName", "status", "validated", "byteSize", "chapterCount", "wordCount", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user account profile and studio settings."
+    },
+    "/users/{userId}/books/{bookId}": {
+      "schema": { "$ref": "#/entities/Book" },
+      "description": "User's private book manuscript projects."
+    },
+    "/users/{userId}/books/{bookId}/purpose/{docId}": {
+      "schema": { "$ref": "#/entities/BookPurpose" },
+      "description": "Book Purpose Document (docId = 'primary')."
+    },
+    "/users/{userId}/books/{bookId}/voice/{docId}": {
+      "schema": { "$ref": "#/entities/AuthorVoice" },
+      "description": "Author Voice Profile (docId = 'primary')."
+    },
+    "/users/{userId}/books/{bookId}/ledger/{docId}": {
+      "schema": { "$ref": "#/entities/CanonicalLedger" },
+      "description": "Canonical Epistemic Ledger (docId = 'primary')."
+    },
+    "/users/{userId}/books/{bookId}/sections/{sectionId}": {
+      "schema": { "$ref": "#/entities/BookSection" },
+      "description": "Book Parts and Sections."
+    },
+    "/users/{userId}/books/{bookId}/chapters/{chapterId}": {
+      "schema": { "$ref": "#/entities/Chapter" },
+      "description": "Book Chapters with architectural blueprints, prose, and 7-point completion ledger."
+    },
+    "/users/{userId}/books/{bookId}/versions/{versionId}": {
+      "schema": { "$ref": "#/entities/ManuscriptVersion" },
+      "description": "Immutable chapter revision snapshots."
+    },
+    "/users/{userId}/books/{bookId}/codex/{entryId}": {
+      "schema": { "$ref": "#/entities/KnowledgeEntry" },
+      "description": "Persistent Knowledge Codex entries."
+    },
+    "/users/{userId}/books/{bookId}/sources/{sourceId}": {
+      "schema": { "$ref": "#/entities/ResearchSource" },
+      "description": "Research bibliography sources."
+    },
+    "/users/{userId}/books/{bookId}/claims/{claimId}": {
+      "schema": { "$ref": "#/entities/ResearchClaim" },
+      "description": "Source-to-claim evidence links and citations."
+    },
+    "/users/{userId}/books/{bookId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/ReviewReport" },
+      "description": "Muhasabah, RED_TEAM, Consistency, and Whole-Book review reports."
+    },
+    "/users/{userId}/books/{bookId}/ai_logs/{interactionId}": {
+      "schema": { "$ref": "#/entities/AIInteraction" },
+      "description": "Governance audit log of AI agent actions and human decisions."
+    },
+    "/users/{userId}/books/{bookId}/exports/{exportId}": {
+      "schema": { "$ref": "#/entities/ExportJob" },
+      "description": "Publication export jobs and validation logs."
+    }
+  }
+}

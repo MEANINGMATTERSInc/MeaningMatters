@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">MeaningMatters</string>
+    <string name="app_tagline">Write with purpose. Research with integrity. Publish with accountability.</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="signing_in">Signing in…</string>
+    <string name="dashboard_title">Author Studio</string>
+    <string name="new_book">New Book</string>
+    <string name="tab_overview">Purpose &amp; Ledger</string>
+    <string name="tab_architect">Architect</string>
+    <string name="tab_studio">Studio</string>
+    <string name="tab_research">Codex &amp; Research</string>
+    <string name="tab_review">Muhasabah &amp; Review</string>
+    <string name="tab_publish">Publish</string>
+    <string name="settings_title">Settings &amp; Security</string>
+    <string name="epistemic_notice">Sources added here are registered by the author and have not been independently web-verified unless explicitly confirmed.</string>
+    <string name="governance_notice">AI assists the author. Human approval is required before any suggestion becomes canonical.</string>
+</resources>
